@@ -61,6 +61,21 @@
         debugElement.scrollTop = debugElement.scrollHeight;
     }
 
+    function onPointerMove(event) {
+        const position = new THREE.Vector3();
+        position.setFromMatrixPosition(controller.matrixWorld);
+    
+        socket.emit('pointerMoved', {
+            position: {
+                x: position.x,
+                y: position.y,
+                z: position.z
+            }
+        });
+    
+        logDebug('Pointer moved: ' + JSON.stringify(position));
+    }
+
     async function init() {
         scene = new THREE.Scene();
 
@@ -76,6 +91,7 @@
         controller.addEventListener('selectend', onSelectEnd);
         controller.addEventListener('squeezestart', onSqueezeStart);
         controller.addEventListener('squeezeend', onSqueezeEnd);
+        controller.addEventListener('pointermove', onPointerMove);
         scene.add(controller);
 
         logDebug('Fetching model list...');
