@@ -14,16 +14,19 @@ io.on('connection', (socket) => {
 
     // Когда пользователь перемещает модель
     socket.on('move_model', (data) => {
+        console.log('Model moved:', data);
         socket.broadcast.emit('model_moved', data);
     });
 
     // Когда пользователь рисует в 3D
     socket.on('draw_line', (data) => {
+        console.log('Line drawn:', data);
         socket.broadcast.emit('line_drawn', data);
     });
 
     // Когда пользователь показывает указку
     socket.on('pointer_moved', (data) => {
+        console.log('Pointer moved:', data);
         socket.broadcast.emit('pointer_updated', data);
     });
 
