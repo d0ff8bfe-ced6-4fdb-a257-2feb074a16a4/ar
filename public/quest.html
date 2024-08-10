@@ -48,12 +48,11 @@
     let initialControllerPosition = null;
     let models = [];
     let currentModelIndex = 0;
-    let previousPosition = null;
     const debugElement = document.getElementById('debug');
     let socket;
-
     let pointerLine;
     let pointerVisible = false;
+    let pcDirectionLine;
 
     function logDebug(message) {
         const logEntry = document.createElement('div');
@@ -95,9 +94,17 @@
         const pointerGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)]);
         const pointerMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 });
         pointerLine = new THREE.Line(pointerGeometry, pointerMaterial);
-        pointerLine.scale.z = 10; 
-        pointerLine.visible = false; 
+        pointerLine.scale.z = 10;
+        pointerLine.visible = false;
         controller.add(pointerLine);
+
+        // Создание зеленого указателя направления ПК
+        const pcDirectionGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)]);
+        const pcDirectionMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00 });
+        pcDirectionLine = new THREE.Line(pcDirectionGeometry, pcDirectionMaterial);
+        pcDirectionLine.scale.z = 1000;  // Бесконечная длина
+        pcDirectionLine.visible = true;
+        scene.add(pcDirectionLine);
 
         const arButton = document.getElementById('arButton');
         arButton.addEventListener('click', () => {
@@ -125,11 +132,12 @@
             }
         });
 
-        socket = io();  // Инициализация соединения
-        socket.on('spawnObject', spawnObject);  // Обработка создания объекта другими пользователями
+        socket = io();
+        socket.on('spawnObject', spawnObject);
+        socket.on('updateDirection', updatePcDirection);
 
         animate();
-    }    
+    }
 
     async function loadModelList() {
         try {
@@ -187,7 +195,6 @@
 
             logDebug('Model placed at position: ' + JSON.stringify(position));
 
-            // Отправляем информацию о созданном объекте на сервер
             socket.emit('spawnObject', { modelIndex: currentModelIndex, position: position, rotation: previewMesh.rotation });
         }
     }
@@ -239,12 +246,22 @@
     }
 
     function spawnObject(data) {
-        // Создание объекта на основе данных, полученных с сервера
         loadModel(models[data.modelIndex].file_path);
         model.position.set(data.position.x, data.position.y, data.position.z);
         model.rotation.set(data.rotation.x, data.rotation.y, data.rotation.z);
         scene.add(model);
     }
+
+    function updatePcDirection(data) {
+        const direction = new THREE.Vector3(data.direction.x, data.direction.y, data.direction.z);
+        pcDirectionLine.setRotationFromDirection(direction);
+    }
+
+    THREE.Object3D.prototype.setRotationFromDirection = function (direction) {
+        const matrix = new THREE.Matrix4();
+        matrix.lookAt(direction, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 1, 0));
+        this.quaternion.setFromRotationMatrix(matrix);
+    };
 
     function animate() {
         if (renderer && renderer.setAnimationLoop) {

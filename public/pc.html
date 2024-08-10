@@ -20,14 +20,19 @@
     const socket = io();
     const camera = document.getElementById('camera');
 
-    // Отправка данных о местоположении и ориентации камеры
+    // Отправка данных о местоположении, ориентации камеры и направлении взгляда пользователя
     setInterval(() => {
         const position = camera.getAttribute('position');
         const rotation = camera.getAttribute('rotation');
+        const direction = new THREE.Vector3();
+        const cameraObject = camera.object3D;
+        cameraObject.getWorldDirection(direction);
+
         socket.emit('updatePosition', {
             id: socket.id,
             position: position,
-            rotation: rotation
+            rotation: rotation,
+            direction: direction // Добавлена отправка направления взгляда
         });
     }, 100);
 
@@ -46,6 +51,7 @@
                 }
                 userEl.setAttribute('position', users[id].position);
                 userEl.setAttribute('rotation', users[id].rotation);
+                // Можно также учитывать direction, если требуется
             }
         });
     });
