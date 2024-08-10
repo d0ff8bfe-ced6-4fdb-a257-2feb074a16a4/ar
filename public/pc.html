@@ -73,9 +73,8 @@
         pointerLine.visible = false;
         scene.add(pointerLine);
 
-        // Загрузка списка моделей (можно интегрировать с API, как в примере для шлема)
-        models.push('path/to/your/first-model.obj');
-        models.push('path/to/your/second-model.obj');
+        models.push('https://dvv2.k-lab.su/api/files/download/1/v2_building.obj');
+        models.push('https://dvv2.k-lab.su/api/files/download/2/v1_ABB_Articulated_Robot_IRB_6700.obj');
 
         if (models.length > 0) {
             loadModel(models[currentModelIndex]);
