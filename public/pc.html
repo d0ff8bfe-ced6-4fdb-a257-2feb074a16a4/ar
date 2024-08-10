@@ -31,15 +31,12 @@
 <script>
     let scene, camera, renderer;
     let model = null;
-    let previewMesh = new THREE.Group();
     let models = [];
     let currentModelIndex = 0;
-    let previousPosition = null;
     let pointerLine;
     let pointerVisible = false;
 
     const debugElement = document.getElementById('debug');
-
     const socket = io();
 
     function logDebug(message) {
@@ -50,43 +47,49 @@
     }
 
     async function init() {
+        // Создание сцены
         scene = new THREE.Scene();
 
+        // Создание камеры
         camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.z = 5;
+        camera.position.set(0, 1.6, 3);  // Установка камеры на высоте человеческих глаз
 
-        renderer = new THREE.WebGLRenderer();
+        // Создание рендера
+        renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
+        // Добавление света
         const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
         light.position.set(0.5, 1, 0.25);
         scene.add(light);
 
-        const loader = new THREE.OBJLoader();
-        models.push('https://dvv2.k-lab.su/api/files/download/1/v2_building.obj');
-        models.push('https://dvv2.k-lab.su/api/files/download/2/v1_ABB_Articulated_Robot_IRB_6700.obj');
+        // Добавление указки
+        pointerLine = new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)]),
+            new THREE.LineBasicMaterial({ color: 0xff0000 })
+        );
+        pointerLine.scale.z = 5;
+        pointerLine.visible = false;
+        scene.add(pointerLine);
+
+        // Загрузка списка моделей (можно интегрировать с API, как в примере для шлема)
+        models.push('path/to/your/first-model.obj');
+        models.push('path/to/your/second-model.obj');
 
         if (models.length > 0) {
             loadModel(models[currentModelIndex]);
         }
 
-        pointerLine = new THREE.Line(
-            new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)]),
-            new THREE.LineBasicMaterial({ color: 0xff0000 })
-        );
-        pointerLine.scale.z = 5; 
-        pointerLine.visible = false; 
-        scene.add(pointerLine);
-
         window.addEventListener('resize', onWindowResize, false);
         window.addEventListener('keydown', onKeyDown, false);
 
+        // Слушаем события от других пользователей
         socket.on('model_moved', (data) => {
-            const newModel = model.clone();
-            newModel.position.copy(data.position);
-            newModel.rotation.copy(data.rotation);
-            scene.add(newModel);
+            const loadedModel = model.clone();
+            loadedModel.position.copy(data.position);
+            loadedModel.rotation.copy(data.rotation);
+            scene.add(loadedModel);
             logDebug('Model moved by another user to: ' + JSON.stringify(data.position));
         });
 
@@ -115,23 +118,7 @@
             function (obj) {
                 model = obj;
                 model.scale.set(0.05, 0.05, 0.05);
-
-                previewMesh.clear();
-                obj.traverse(function(child) {
-                    if (child.isMesh) {
-                        const wireframeGeometry = new THREE.WireframeGeometry(child.geometry);
-                        const wireframeMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00 });
-                        const wireframe = new THREE.LineSegments(wireframeGeometry, wireframeMaterial);
-                        wireframe.scale.copy(child.scale);
-                        wireframe.position.copy(child.position);
-                        wireframe.rotation.copy(child.rotation);
-                        previewMesh.add(wireframe);
-                    }
-                });
-                previewMesh.scale.set(0.05, 0.05, 0.05);
-                previewMesh.visible = false;
-                scene.add(previewMesh);
-
+                scene.add(model);
                 logDebug('Model loaded and added to the scene');
             },
             undefined,
@@ -163,10 +150,8 @@
                 break;
             case ' ': // Добавление модели
                 if (model) {
-                    const position = new THREE.Vector3(0, 0, 0);
                     const clone = model.clone();
-                    clone.position.copy(position);
-                    clone.rotation.copy(previewMesh.rotation);
+                    clone.position.set(Math.random() * 2 - 1, 0, Math.random() * 2 - 1);
                     scene.add(clone);
 
                     socket.emit('move_model', {
@@ -174,13 +159,14 @@
                         rotation: clone.rotation,
                     });
 
-                    logDebug('Model placed at position: ' + JSON.stringify(position));
+                    logDebug('Model placed at position: ' + JSON.stringify(clone.position));
                 }
                 break;
             case 'ArrowRight': // Рисование линии
-                const currentPosition = new THREE.Vector3(0, 0, 0);
-
                 if (previousPosition) {
+                    const currentPosition = new THREE.Vector3();
+                    currentPosition.setFromMatrixPosition(camera.matrixWorld);
+
                     const lineGeometry = new THREE.BufferGeometry().setFromPoints([previousPosition.clone(), currentPosition.clone()]);
                     const lineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 5 });
                     const line = new THREE.Line(lineGeometry, lineMaterial);
@@ -192,9 +178,12 @@
                     });
 
                     logDebug('Drawing thick red line from ' + JSON.stringify(previousPosition) + ' to ' + JSON.stringify(currentPosition));
-                }
 
-                previousPosition = currentPosition;
+                    previousPosition = currentPosition;
+                } else {
+                    previousPosition = new THREE.Vector3();
+                    previousPosition.setFromMatrixPosition(camera.matrixWorld);
+                }
                 break;
             default:
                 break;
