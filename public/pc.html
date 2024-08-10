@@ -64,8 +64,8 @@
         scene.add(light);
 
         const loader = new THREE.OBJLoader();
-        models.push('path/to/your/first-model.obj'); // Add your models here
-        models.push('path/to/your/second-model.obj');
+        models.push('https://dvv2.k-lab.su/api/files/download/1/v2_building.obj');
+        models.push('https://dvv2.k-lab.su/api/files/download/2/v1_ABB_Articulated_Robot_IRB_6700.obj');
 
         if (models.length > 0) {
             loadModel(models[currentModelIndex]);
