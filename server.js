@@ -1,53 +1,34 @@
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
-const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-let users = {};
-let objects = {};
-
-app.use(express.static(path.join(__dirname, 'public')));
-
 io.on('connection', (socket) => {
-    console.log('New client connected');
-    users[socket.id] = {
-        position: { x: 0, y: 0, z: 0 },
-        rotation: { x: 0, y: 0, z: 0 },
-        direction: { x: 0, y: 0, z: -1 } // Начальное направление взгляда
-    };
+    console.log('A user connected:', socket.id);
 
-    socket.emit('initialObjectPositions', objects);
-
-    socket.on('updatePosition', (data) => {
-        users[data.id] = {
-            position: data.position,
-            rotation: data.rotation,
-            direction: data.direction // Сохранение направления взгляда
-        };
-        io.emit('updatePositions', users);
+    // Когда пользователь перемещает модель
+    socket.on('move_model', (data) => {
+        socket.broadcast.emit('model_moved', data);
     });
 
-    socket.on('message', (data) => {
-        io.emit('message', data);
+    // Когда пользователь рисует в 3D
+    socket.on('draw_line', (data) => {
+        socket.broadcast.emit('line_drawn', data);
     });
 
-    socket.on('spawnObject', (data) => {
-        // Генерация уникального ID для нового объекта
-        const objectId = `object-${Date.now()}`;
-        objects[objectId] = { ...data, id: objectId };
-        io.emit('spawnObject', objects[objectId]);  // Отправка информации о новом объекте всем клиентам
+    // Когда пользователь показывает указку
+    socket.on('pointer_moved', (data) => {
+        socket.broadcast.emit('pointer_updated', data);
     });
 
     socket.on('disconnect', () => {
-        console.log('Client disconnected');
-        delete users[socket.id];
-        io.emit('updatePositions', users);
+        console.log('A user disconnected:', socket.id);
     });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(3000, () => {
+    console.log('Server is running on port 3000');
+});

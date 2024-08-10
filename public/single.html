@@ -36,6 +36,7 @@
 <div id="debug"></div>
 <script src="https://cdn.jsdelivr.net/npm/three@0.135.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.135.0/examples/js/loaders/OBJLoader.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 
 <script>
     let scene, camera, renderer;
@@ -52,6 +53,27 @@
     
     let pointerLine;
     let pointerVisible = false;
+
+    const socket = io();
+
+    function onSelectStart() {
+        if (model && addingEnabled) {
+            const position = new THREE.Vector3();
+            position.setFromMatrixPosition(controller.matrixWorld);
+
+            const clone = model.clone();
+            clone.position.copy(position);
+            clone.rotation.copy(previewMesh.rotation);
+            scene.add(clone);
+
+            socket.emit('move_model', {
+                position: clone.position,
+                rotation: clone.rotation,
+            });
+
+            logDebug('Model placed at position: ' + JSON.stringify(position));
+        }
+    }
 
     function updateLabel(text) {
         const context = labelTexture.image.getContext('2d');
@@ -289,6 +311,29 @@
         } else {
             previousPosition = null;  // Сброс предыдущей позиции, если стик не отклонен вправо
         }
+
+        if (rightStickX > 0.5) { 
+            const currentPosition = new THREE.Vector3();
+            currentPosition.setFromMatrixPosition(controller.matrixWorld);
+
+            if (previousPosition) {
+                const lineGeometry = new THREE.BufferGeometry().setFromPoints([previousPosition.clone(), currentPosition.clone()]);
+                const lineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 5 });
+                const line = new THREE.Line(lineGeometry, lineMaterial);
+                scene.add(line);
+
+                socket.emit('draw_line', {
+                    start: previousPosition.clone(),
+                    end: currentPosition.clone(),
+                });
+
+                logDebug('Drawing thick red line from ' + JSON.stringify(previousPosition) + ' to ' + JSON.stringify(currentPosition));
+            }
+
+            previousPosition = currentPosition;
+        } else {
+            previousPosition = null;
+        }
     }
 
     function animate() {
@@ -324,6 +369,28 @@
                 logDebug('Rotating preview mesh by deltaX: ' + deltaX);
             }
         }
+
+        socket.on('model_moved', (data) => {
+            const newModel = model.clone();
+            newModel.position.copy(data.position);
+            newModel.rotation.copy(data.rotation);
+            scene.add(newModel);
+            logDebug('Model moved by another user to: ' + JSON.stringify(data.position));
+        });
+
+        socket.on('line_drawn', (data) => {
+            const lineGeometry = new THREE.BufferGeometry().setFromPoints([data.start, data.end]);
+            const lineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 5 });
+            const line = new THREE.Line(lineGeometry, lineMaterial);
+            scene.add(line);
+            logDebug('Line drawn by another user from ' + JSON.stringify(data.start) + ' to ' + JSON.stringify(data.end));
+        });
+
+        socket.on('pointer_updated', (data) => {
+            pointerLine.position.copy(data.position);
+            pointerLine.visible = data.visible;
+            logDebug('Pointer moved by another user to: ' + JSON.stringify(data.position));
+        });
 
         renderer.render(scene, camera);
     }
