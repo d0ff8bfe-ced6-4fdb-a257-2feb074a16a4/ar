@@ -14,12 +14,20 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 io.on('connection', (socket) => {
     console.log('New client connected');
-    users[socket.id] = { position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0 } };
+    users[socket.id] = {
+        position: { x: 0, y: 0, z: 0 },
+        rotation: { x: 0, y: 0, z: 0 },
+        direction: { x: 0, y: 0, z: -1 } // Начальное направление взгляда
+    };
 
     socket.emit('initialObjectPositions', objects);
 
     socket.on('updatePosition', (data) => {
-        users[data.id] = { position: data.position, rotation: data.rotation };
+        users[data.id] = {
+            position: data.position,
+            rotation: data.rotation,
+            direction: data.direction // Сохранение направления взгляда
+        };
         io.emit('updatePositions', users);
     });
 

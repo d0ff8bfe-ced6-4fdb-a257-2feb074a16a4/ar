@@ -102,7 +102,7 @@
         const pcDirectionGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)]);
         const pcDirectionMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00 });
         pcDirectionLine = new THREE.Line(pcDirectionGeometry, pcDirectionMaterial);
-        pcDirectionLine.scale.z = 1000;  // Бесконечная длина
+        pcDirectionLine.scale.z = 1000;  // Большая длина для указателя
         pcDirectionLine.visible = true;
         scene.add(pcDirectionLine);
 
@@ -134,7 +134,12 @@
 
         socket = io();
         socket.on('spawnObject', spawnObject);
-        socket.on('updateDirection', updatePcDirection);
+        socket.on('updatePositions', (users) => {
+            if (users[socket.id]) {
+                const user = users[socket.id];
+                updatePcDirection(user);
+            }
+        });
 
         animate();
     }
@@ -252,9 +257,11 @@
         scene.add(model);
     }
 
-    function updatePcDirection(data) {
-        const direction = new THREE.Vector3(data.direction.x, data.direction.y, data.direction.z);
-        pcDirectionLine.setRotationFromDirection(direction);
+    function updatePcDirection(user) {
+        if (user.direction) {
+            const direction = new THREE.Vector3(user.direction.x, user.direction.y, user.direction.z);
+            pcDirectionLine.setRotationFromDirection(direction);
+        }
     }
 
     THREE.Object3D.prototype.setRotationFromDirection = function (direction) {
