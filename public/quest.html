@@ -126,7 +126,7 @@
         });
 
         socket = io();  // Инициализация соединения
-        socket.on('updatePositions', updateOtherUsers);  // Обработка позиций других пользователей
+        socket.on('spawnObject', spawnObject);  // Обработка создания объекта другими пользователями
 
         animate();
     }    
@@ -187,7 +187,8 @@
 
             logDebug('Model placed at position: ' + JSON.stringify(position));
 
-            socket.emit('updateObjectPosition', { id: socket.id, position });  // Отправка информации о новой позиции объекта
+            // Отправляем информацию о созданном объекте на сервер
+            socket.emit('spawnObject', { modelIndex: currentModelIndex, position: position, rotation: previewMesh.rotation });
         }
     }
 
@@ -235,43 +236,14 @@
                 logDebug('Pointer hidden');
             }
         }
-
-        // Реализация рисования в 3D при движении стика вправо
-        const rightStickX = gamepad.axes[2];
-        if (rightStickX > 0.5) {  // Если стик отклонен вправо
-            const currentPosition = new THREE.Vector3();
-            currentPosition.setFromMatrixPosition(controller.matrixWorld);
-
-            if (previousPosition) {
-                const lineGeometry = new THREE.BufferGeometry().setFromPoints([previousPosition.clone(), currentPosition.clone()]);
-                const lineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 5 });  // Толстая красная линия
-                const line = new THREE.Line(lineGeometry, lineMaterial);
-                scene.add(line);
-                logDebug('Drawing thick red line from ' + JSON.stringify(previousPosition) + ' to ' + JSON.stringify(currentPosition));
-            }
-
-            previousPosition = currentPosition;
-        } else {
-            previousPosition = null;  // Сброс предыдущей позиции, если стик не отклонен вправо
-        }
     }
 
-    function updateOtherUsers(users) {
-        // Обновление позиций других пользователей
-        Object.keys(users).forEach(id => {
-            if (id !== socket.id) {
-                let user = scene.getObjectByName(id);
-                if (!user) {
-                    const geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-                    const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-                    user = new THREE.Mesh(geometry, material);
-                    user.name = id;
-                    scene.add(user);
-                }
-                user.position.set(users[id].position.x, users[id].position.y, users[id].position.z);
-                user.rotation.set(users[id].rotation.x, users[id].rotation.y, users[id].rotation.z);
-            }
-        });
+    function spawnObject(data) {
+        // Создание объекта на основе данных, полученных с сервера
+        loadModel(models[data.modelIndex].file_path);
+        model.position.set(data.position.x, data.position.y, data.position.z);
+        model.rotation.set(data.rotation.x, data.rotation.y, data.rotation.z);
+        scene.add(model);
     }
 
     function animate() {
@@ -307,8 +279,6 @@
                 logDebug('Rotating preview mesh by deltaX: ' + deltaX);
             }
         }
-
-        socket.emit('updatePosition', { id: socket.id, position: controller.position, rotation: controller.rotation }); // Отправка текущей позиции пользователя
 
         renderer.render(scene, camera);
     }

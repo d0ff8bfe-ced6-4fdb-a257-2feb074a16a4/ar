@@ -27,9 +27,11 @@ io.on('connection', (socket) => {
         io.emit('message', data);
     });
 
-    socket.on('updateObjectPosition', (data) => {
-        objects[data.id] = { position: data.position };
-        io.emit('updateObjectPosition', data);
+    socket.on('spawnObject', (data) => {
+        // Генерация уникального ID для нового объекта
+        const objectId = `object-${Date.now()}`;
+        objects[objectId] = { ...data, id: objectId };
+        io.emit('spawnObject', objects[objectId]);  // Отправка информации о новом объекте всем клиентам
     });
 
     socket.on('disconnect', () => {

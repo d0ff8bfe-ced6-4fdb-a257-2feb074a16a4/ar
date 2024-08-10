@@ -53,6 +53,15 @@
         });
     });
 
+    socket.on('spawnObject', (data) => {
+        // Создание объекта на основе данных, полученных с сервера
+        const newObject = document.createElement('a-box');
+        newObject.setAttribute('position', `${data.position.x} ${data.position.y} ${data.position.z}`);
+        newObject.setAttribute('rotation', `${data.rotation.x} ${data.rotation.y} ${data.rotation.z}`);
+        newObject.setAttribute('color', '#00FF00');  // Можно изменить на другой цвет или тип объекта
+        document.querySelector('a-scene').appendChild(newObject);
+    });
+
     socket.on('initialObjectPositions', (objects) => {
         // Обработка начальных позиций объектов, если нужно
     });
